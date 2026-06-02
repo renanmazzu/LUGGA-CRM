@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LUGGA CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: #F4F5F7; color: #1A1A2E; min-height: 100vh; }
+  button { font-family: inherit; cursor: pointer; }
+  input, select, textarea { font-family: inherit; }
+  :root {
+    --navy: #0A1628; --blue: #378ADD; --bg: #F4F5F7; --surface: #FFFFFF;
+    --border: #E2E5EB; --text: #1A1A2E; --muted: #6B7A99; --faint: #F0F2F7;
+  }
+  #auth-screen {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 2rem; gap: 1.5rem;
+  }
+  #auth-screen .logo { font-size: 28px; font-weight: 700; color: var(--navy); letter-spacing: -0.04em; }
+  #auth-screen .subtitle { font-size: 14px; color: var(--muted); text-align: center; max-width: 380px; line-height: 1.6; }
+  .setup-box {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 1.5rem; width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 1rem;
+  }
+  .setup-box h3 { font-size: 14px; font-weight: 600; color: var(--text); }
+  .step { display: flex; gap: 12px; font-size: 13px; color: var(--muted); align-items: flex-start; }
+  .step-num { background: var(--blue); color: #fff; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; flex-shrink: 0; margin-top: 1px; }
+  .step a { color: var(--blue); text-decoration: none; }
+  #client-id-input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); outline: none; background: var(--faint); }
+  #client-id-input:focus { border-color: var(--blue); background: #fff; }
+  #btn-connect {
+    background: var(--navy); color: #fff; border: none; border-radius: 10px;
+    padding: 12px; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: opacity 0.2s; cursor: pointer;
+  }
+  #btn-connect:hover { opacity: 0.85; }
+  #btn-connect:disabled { opacity: 0.5; cursor: not-allowed; }
+  #auth-error { font-size: 12px; color: #D85A30; background: #FAECE7; border: 1px solid #F0997B; border-radius: 8px; padding: 8px 12px; display: none; }
+  #app { display: none; flex-direction: column; min-height: 100vh; }
+  #header {
+    background: var(--navy); padding: 1.25rem 1.5rem;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    position: sticky; top: 0; z-index: 50;
+  }
+  #header .logo { font-size: 18px; font-weight: 600; color: #fff; letter-spacing: -0.03em; }
+  #header .meta { font-size: 11px; color: #6B8BB5; margin-top: 2px; }
+  #header .right { display: flex; align-items: center; gap: 8px; }
+  #drive-status { font-size: 11px; color: #6B8BB5; display: flex; align-items: center; gap: 4px; }
+  #drive-status .dot { width: 6px; height: 6px; border-radius: 50%; background: #6B8BB5; }
+  #drive-status.synced .dot { background: #1D9E75; }
+  #drive-status.syncing .dot { background: #BA7517; animation: pulse 1s infinite; }
+  #drive-status.error .dot { background: #D85A30; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  #btn-new-lead { background: var(--blue); color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 500; cursor: pointer; }
+  #btn-logout { background: transparent; border: 1px solid #1A2840; color: #6B8BB5; border-radius: 8px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
+  #stage-bar { background: var(--navy); border-bottom: 1px solid #1A2840; padding: 0 1.5rem 1rem; display: flex; gap: 6px; flex-wrap: wrap; }
+  .stage-pill { background: transparent; color: #6B8BB5; border: 1px solid #1A2840; border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 500; transition: all 0.15s; cursor: pointer; }
+  .stage-pill.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+  #filters { padding: 1rem 1.5rem; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: var(--surface); border-bottom: 1px solid var(--border); }
+  #search-input { flex: 1; min-width: 200px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--faint); font-size: 13px; color: var(--text); outline: none; }
+  #search-input:focus { border-color: var(--blue); background: #fff; }
+  .temp-pill { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--faint); font-size: 12px; font-weight: 500; transition: all 0.15s; cursor: pointer; }
+  #lead-list { padding: 1rem 1.5rem 4rem; display: flex; flex-direction: column; gap: 8px; }
+  .lead-card {
+    background: var(--surface); border: 0.5px solid var(--border); border-left: 3px solid transparent;
+    border-radius: 10px; padding: 12px 16px; cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .lead-card:hover { border-color: #CBD1DC; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .lead-card.urgent { border-color: #F0997B !important; }
+  .lead-info { flex: 1; min-width: 0; }
+  .lead-name { font-size: 14px; font-weight: 600; color: var(--text); }
+  .lead-phone-date { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .lead-notes { font-size: 12px; color: var(--muted); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px; }
+  .lead-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+  .stage-badge { font-size: 11px; font-weight: 600; border-radius: 20px; padding: 2px 10px; border: 1px solid; }
+  .temp-badge { font-size: 11px; font-weight: 500; }
+  .urgent-badge { font-size: 10px; background: #FAECE7; color: #D85A30; border: 1px solid #F0997B; border-radius: 20px; padding: 1px 8px; font-weight: 500; }
+  #empty-state { text-align: center; padding: 3rem; color: var(--muted); font-size: 14px; }
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; padding: 1rem;
+  }
+  .modal { background: var(--surface); border-radius: 14px; padding: 1.5rem; width: 100%; max-width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+  .modal-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 1.25rem; }
+  .form-group { display: flex; flex-direction: column; gap: 10px; }
+  .form-input { width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--faint); font-size: 14px; color: var(--text); outline: none; }
+  .form-input:focus { border-color: var(--blue); background: #fff; }
+  .form-row { display: flex; gap: 8px; }
+  .form-row .form-input { flex: 1; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 1.25rem; justify-content: flex-end; }
+  .btn-cancel { padding: 9px 16px; border-radius: 8px; border: 1px solid var(--border); background: transparent; font-size: 13px; color: var(--muted); cursor: pointer; }
+  .btn-primary { padding: 9px 20px; border-radius: 8px; border: none; background: var(--navy); font-size: 13px; font-weight: 600; color: #fff; cursor: pointer; }
+  #detail-panel { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: flex-start; justify-content: flex-end; z-index: 100; }
+  #detail-inner { background: var(--surface); width: 100%; max-width: 460px; height: 100%; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+  .panel-header { display: flex; justify-content: space-between; align-items: flex-start; }
+  .panel-name { font-size: 18px; font-weight: 600; color: var(--text); }
+  .panel-phone { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .btn-close { background: none; border: none; font-size: 22px; color: var(--muted); padding: 0 4px; line-height: 1; cursor: pointer; }
+  .stage-selector { display: flex; gap: 8px; flex-wrap: wrap; }
+  .stage-btn { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 400; cursor: pointer; transition: all 0.15s; border: 1px solid var(--border); background: transparent; color: var(--muted); }
+  .detail-meta { background: var(--faint); border-radius: 10px; padding: 1rem; font-size: 13px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .meta-label { color: var(--muted); font-size: 11px; margin-bottom: 2px; }
+  .meta-val { font-weight: 500; }
+  .ai-section { display: flex; flex-direction: column; gap: 8px; }
+  .ai-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .ai-textarea { width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--faint); font-size: 13px; color: var(--text); outline: none; resize: vertical; font-family: inherit; }
+  .ai-textarea:focus { border-color: var(--blue); background: #fff; }
+  .btn-ai { width: 100%; padding: 10px; border-radius: 8px; border: none; background: var(--navy); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-ai:disabled { opacity: 0.5; cursor: not-allowed; }
+  .ai-result { background: #E6F1FB; border: 1px solid #B5D4F4; border-radius: 10px; padding: 1rem; font-size: 13px; color: #0C447C; line-height: 1.6; white-space: pre-wrap; }
+  .btn-copy { display: block; margin-top: 8px; padding: 6px 12px; border-radius: 6px; border: 1px solid #B5D4F4; background: #fff; color: #378ADD; font-size: 12px; font-weight: 500; cursor: pointer; }
+  .panel-footer { display: flex; gap: 8px; padding-top: 0.5rem; border-top: 1px solid var(--border); }
+  .btn-edit { flex: 1; padding: 9px; border-radius: 8px; border: 1px solid var(--border); background: transparent; font-size: 13px; color: var(--muted); cursor: pointer; }
+  .btn-delete { flex: 1; padding: 9px; border-radius: 8px; border: 1px solid #F0997B; background: #FAECE7; font-size: 13px; color: #D85A30; font-weight: 500; cursor: pointer; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="auth-screen">
+  <div class="logo">LUGGA CRM</div>
+  <p class="subtitle">Dados salvos automaticamente no Google Drive.</p>
+  <div class="setup-box">
+    <h3>Conectar ao Google Drive</h3>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div>Cole seu <strong>Client ID</strong> do Google Cloud abaixo</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div>Clique em "Entrar com Google" e autorize o acesso</div>
+    </div>
+    <input type="text" id="client-id-input" placeholder="xxxx.apps.googleusercontent.com" />
+    <div id="auth-error"></div>
+    <button id="btn-connect">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+      Entrar com Google
+    </button>
+    <p id="gsi-status" style="font-size:11px;color:var(--muted);text-align:center;">Carregando autenticação Google...</p>
+  </div>
+</div>
+
+<div id="app">
+  <div id="header">
+    <div>
+      <div class="logo">LUGGA CRM</div>
+      <div class="meta" id="header-meta">0 leads</div>
+    </div>
+    <div class="right">
+      <div id="drive-status"><div class="dot"></div><span id="drive-status-text">Drive</span></div>
+      <button id="btn-new-lead">+ Novo lead</button>
+      <button id="btn-logout">Sair</button>
+    </div>
+  </div>
+  <div id="stage-bar"></div>
+  <div id="filters">
+    <input type="text" id="search-input" placeholder="Buscar por nome ou telefone..." />
+    <button class="temp-pill" data-temp="Frio" style="color:#5F5E5A">❄️ Frio</button>
+    <button class="temp-pill" data-temp="Morno" style="color:#BA7517">🌤 Morno</button>
+    <button class="temp-pill" data-temp="Quente" style="color:#D85A30">🔥 Quente</button>
+  </div>
+  <div id="lead-list"></div>
+</div>
+
+<div id="form-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-title" id="form-title">Novo lead</div>
+    <div class="form-group">
+      <input class="form-input" id="f-name" placeholder="Nome *" />
+      <input class="form-input" id="f-phone" placeholder="Telefone (ex: 11 99999-0000)" />
+      <div class="form-row">
+        <select class="form-input" id="f-stage"></select>
+        <select class="form-input" id="f-temp"></select>
+      </div>
+      <input class="form-input" type="date" id="f-date" />
+      <textarea class="form-input" id="f-notes" rows="3" placeholder="Notas sobre o lead..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="btn-cancel-form">Cancelar</button>
+      <button class="btn-primary" id="btn-save-form">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<div id="detail-panel" class="hidden">
+  <div id="detail-inner">
+    <div class="panel-header">
+      <div>
+        <div class="panel-name" id="d-name"></div>
+        <div class="panel-phone" id="d-phone"></div>
+      </div>
+      <button class="btn-close" id="btn-close-panel">×</button>
+    </div>
+    <div class="stage-selector" id="d-stage-selector"></div>
+    <div class="detail-meta" id="d-meta"></div>
+    <div class="ai-section">
+      <div class="ai-title">Gerar próxima mensagem com IA</div>
+      <textarea class="ai-textarea" id="d-convo" rows="4" placeholder="Cole a conversa recente aqui (opcional)..."></textarea>
+      <button class="btn-ai" id="btn-gen-msg">✦ Gerar mensagem</button>
+      <div id="ai-result" class="hidden"></div>
+    </div>
+    <div class="panel-footer">
+      <button class="btn-edit" id="btn-edit-lead">Editar</button>
+      <button class="btn-delete" id="btn-delete-lead">Remover</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const FOLDER_ID = '1B-tJp2XpjUlXX3IwQxk5cHFG6AyDqWnL';
+const FILE_NAME = 'lugga_crm_data.json';
+const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+
+const STAGES = ['Novo','Qualificando','Objeção','Agendamento','Ganho','Perdido'];
+const TEMPS = ['Frio','Morno','Quente'];
+const STAGE_COLORS = {
+  'Novo':        { bg:'#E6F1FB', text:'#0C447C', border:'#B5D4F4' },
+  'Qualificando':{ bg:'#EAF3DE', text:'#27500A', border:'#C0DD97' },
+  'Objeção':     { bg:'#FAEEDA', text:'#633806', border:'#FAC775' },
+  'Agendamento': { bg:'#EEEDFE', text:'#3C3489', border:'#CECBF6' },
+  'Ganho':       { bg:'#1D9E75', text:'#fff',    border:'#1D9E75' },
+  'Perdido':     { bg:'#F1EFE8', text:'#5F5E5A', border:'#D3D1C7' },
+};
+const TEMP_META = {
+  'Frio':   { icon:'❄️', color:'#5F5E5A' },
+  'Morno':  { icon:'🌤', color:'#BA7517' },
+  'Quente': { icon:'🔥', color:'#D85A30' },
+};
+
+let leads = [], filterStage = 'Todos', filterTemp = 'Todos', filterSearch = '';
+let selectedId = null, editId = null, driveFileId = null, accessToken = null, saveTimeout = null;
+let tokenClient = null, gsiReady = false;
+
+// Wait for GSI script to load
+function waitForGSI(callback, attempts) {
+  attempts = attempts || 0;
+  if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+    gsiReady = true;
+    document.getElementById('gsi-status').textContent = 'Pronto para conectar.';
+    document.getElementById('btn-connect').disabled = false;
+    callback && callback();
+  } else if (attempts < 30) {
+    setTimeout(() => waitForGSI(callback, attempts + 1), 300);
+  } else {
+    document.getElementById('gsi-status').textContent = 'Erro ao carregar Google. Verifique sua conexão e recarregue a página.';
+    document.getElementById('gsi-status').style.color = '#D85A30';
+  }
+}
+
+document.getElementById('btn-connect').disabled = true;
+window.addEventListener('load', () => waitForGSI());
+
+function initTokenClient(clientId) {
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: clientId,
+    scope: SCOPES,
+    callback: async (resp) => {
+      if (resp.error) { showAuthError('Erro OAuth: ' + resp.error); return; }
+      accessToken = resp.access_token;
+      localStorage.setItem('lugga_client_id', clientId);
+      showApp();
+      await loadFromDrive();
+    }
+  });
+}
+
+document.getElementById('btn-connect').addEventListener('click', () => {
+  const clientId = document.getElementById('client-id-input').value.trim();
+  if (!clientId) { showAuthError('Cole o Client ID antes de continuar.'); return; }
+  if (!gsiReady) { showAuthError('Aguarde o Google carregar (veja o status abaixo).'); return; }
+  document.getElementById('auth-error').style.display = 'none';
+  try {
+    initTokenClient(clientId);
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+  } catch(e) {
+    showAuthError('Erro: ' + e.message);
+  }
+});
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.style.display = 'block';
+  el.textContent = msg;
+}
+
+function showApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  const app = document.getElementById('app');
+  app.style.display = 'flex';
+  app.style.flexDirection = 'column';
+}
+
+document.getElementById('btn-logout').addEventListener('click', () => {
+  if (confirm('Sair? Os dados permanecem salvos no Drive.')) {
+    accessToken = null; driveFileId = null; leads = [];
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
+  }
+});
+
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('lugga_client_id');
+  if (saved) document.getElementById('client-id-input').value = saved;
+});
+
+// Drive API
+function setDriveStatus(state, text) {
+  const el = document.getElementById('drive-status');
+  el.className = state;
+  document.getElementById('drive-status-text').textContent = text;
+}
+
+async function driveRequest(url, options) {
+  options = options || {};
+  const res = await fetch(url, {
+    ...options,
+    headers: Object.assign({ 'Authorization': 'Bearer ' + accessToken }, options.headers || {})
+  });
+  if (!res.ok) throw new Error('Drive API ' + res.status);
+  return res.json();
+}
+
+async function findOrCreateFile() {
+  const q = encodeURIComponent("name='" + FILE_NAME + "' and '" + FOLDER_ID + "' in parents and trashed=false");
+  const res = await driveRequest('https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id,name)');
+  if (res.files && res.files.length > 0) { driveFileId = res.files[0].id; return; }
+  const boundary = 'lugga314159';
+  const meta = JSON.stringify({ name: FILE_NAME, parents: [FOLDER_ID], mimeType: 'application/json' });
+  const body = '--' + boundary + '\r\nContent-Type: application/json\r\n\r\n' + meta + '\r\n--' + boundary + '\r\nContent-Type: application/json\r\n\r\n[]\r\n--' + boundary + '--';
+  const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary="' + boundary + '"' },
+    body: body
+  });
+  if (!r.ok) throw new Error('Falha ao criar arquivo no Drive');
+  const created = await r.json();
+  driveFileId = created.id;
+}
+
+async function loadFromDrive() {
+  setDriveStatus('syncing', 'carregando...');
+  try {
+    await findOrCreateFile();
+    const res = await fetch('https://www.googleapis.com/drive/v3/files/' + driveFileId + '?alt=media', {
+      headers: { 'Authorization': 'Bearer ' + accessToken }
+    });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    leads = Array.isArray(data) ? data : [];
+    setDriveStatus('synced', 'Drive ✓');
+  } catch(e) {
+    leads = [];
+    setDriveStatus('error', 'erro Drive');
+  }
+  renderAll();
+}
+
+async function saveToDrive() {
+  if (!driveFileId) return;
+  setDriveStatus('syncing', 'salvando...');
+  try {
+    await fetch('https://www.googleapis.com/upload/drive/v3/files/' + driveFileId + '?uploadType=media', {
+      method: 'PATCH',
+      headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify(leads)
+    });
+    setDriveStatus('synced', 'Drive ✓');
+  } catch(e) {
+    setDriveStatus('error', 'erro ao salvar');
+  }
+}
+
+function scheduleSave() { clearTimeout(saveTimeout); saveTimeout = setTimeout(saveToDrive, 600); }
+
+// Utils
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+function today() { return new Date().toISOString().slice(0,10); }
+function formatDate(d) {
+  if (!d) return '—';
+  const [y,m,day] = d.split('-');
+  return day + '/' + m + '/' + y;
+}
+function daysSince(d) {
+  if (!d) return null;
+  const diff = Math.floor((Date.now() - new Date(d)) / 86400000);
+  if (diff === 0) return 'hoje';
+  if (diff === 1) return 'ontem';
+  return diff + 'd atrás';
+}
+
+// Render
+function renderAll() {
+  renderStagePills();
+  renderLeads();
+  document.getElementById('header-meta').textContent = leads.length + ' leads';
+}
+
+function renderStagePills() {
+  const counts = {};
+  STAGES.forEach(s => { counts[s] = leads.filter(l => l.stage === s).length; });
+  document.getElementById('stage-bar').innerHTML = ['Todos', ...STAGES].map(s => {
+    const count = s !== 'Todos' ? counts[s] : leads.length;
+    const active = filterStage === s ? 'active' : '';
+    return '<button class="stage-pill ' + active + '" data-stage="' + s + '">' + s + (count > 0 ? ' <span style="opacity:.7">(' + count + ')</span>' : '') + '</button>';
+  }).join('');
+  document.querySelectorAll('.stage-pill').forEach(btn => {
+    btn.addEventListener('click', () => { filterStage = btn.dataset.stage; renderAll(); });
+  });
+}
+
+function renderLeads() {
+  const filtered = leads.filter(l => {
+    if (filterStage !== 'Todos' && l.stage !== filterStage) return false;
+    if (filterTemp !== 'Todos' && l.temp !== filterTemp) return false;
+    if (filterSearch && !l.name.toLowerCase().includes(filterSearch.toLowerCase()) && !(l.phone || '').includes(filterSearch)) return false;
+    return true;
+  });
+  if (filtered.length === 0) {
+    document.getElementById('lead-list').innerHTML = '<div id="empty-state">' + (leads.length === 0 ? 'Nenhum lead ainda. Adicione o primeiro!' : 'Nenhum lead com esses filtros.') + '</div>';
+    return;
+  }
+  document.getElementById('lead-list').innerHTML = filtered.map(lead => {
+    const sc = STAGE_COLORS[lead.stage];
+    const tm = TEMP_META[lead.temp];
+    const daysAgo = lead.lastContact ? Math.floor((Date.now() - new Date(lead.lastContact)) / 86400000) : 0;
+    const urgent = lead.stage !== 'Ganho' && lead.stage !== 'Perdido' && daysAgo >= 3;
+    return '<div class="lead-card' + (urgent ? ' urgent' : '') + '" data-id="' + lead.id + '" style="border-left-color:' + tm.color + '">' +
+      '<div class="lead-info">' +
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+          '<span class="lead-name">' + lead.name + '</span>' +
+          (urgent ? '<span class="urgent-badge">⚠ Sem contato há ' + daysSince(lead.lastContact) + '</span>' : '') +
+        '</div>' +
+        '<div class="lead-phone-date">' + (lead.phone ? '<span style="margin-right:12px">' + lead.phone + '</span>' : '') + '<span>Último contato: ' + formatDate(lead.lastContact) + '</span></div>' +
+        (lead.notes ? '<div class="lead-notes">' + lead.notes + '</div>' : '') +
+      '</div>' +
+      '<div class="lead-badges">' +
+        '<span class="stage-badge" style="background:' + sc.bg + ';color:' + sc.text + ';border-color:' + sc.border + '">' + lead.stage + '</span>' +
+        '<span class="temp-badge" style="color:' + tm.color + '">' + tm.icon + ' ' + lead.temp + '</span>' +
+      '</div></div>';
+  }).join('');
+  document.querySelectorAll('.lead-card').forEach(card => {
+    card.addEventListener('click', () => openDetail(card.dataset.id));
+  });
+}
+
+// Form
+function openForm(lead) {
+  editId = lead ? lead.id : null;
+  document.getElementById('form-title').textContent = lead ? 'Editar lead' : 'Novo lead';
+  document.getElementById('f-name').value = lead ? lead.name : '';
+  document.getElementById('f-phone').value = lead ? (lead.phone || '') : '';
+  document.getElementById('f-notes').value = lead ? (lead.notes || '') : '';
+  document.getElementById('f-date').value = lead ? (lead.lastContact || today()) : today();
+  document.getElementById('f-stage').innerHTML = STAGES.map(s => '<option' + (s === (lead ? lead.stage : 'Novo') ? ' selected' : '') + '>' + s + '</option>').join('');
+  document.getElementById('f-temp').innerHTML = TEMPS.map(t => '<option' + (t === (lead ? lead.temp : 'Morno') ? ' selected' : '') + '>' + t + '</option>').join('');
+  document.getElementById('btn-save-form').textContent = lead ? 'Salvar' : 'Adicionar';
+  document.getElementById('form-modal').classList.remove('hidden');
+}
+
+document.getElementById('btn-new-lead').addEventListener('click', () => openForm(null));
+document.getElementById('btn-cancel-form').addEventListener('click', () => { document.getElementById('form-modal').classList.add('hidden'); editId = null; });
+document.getElementById('form-modal').addEventListener('click', function(e) { if (e.target === this) { this.classList.add('hidden'); editId = null; } });
+
+document.getElementById('btn-save-form').addEventListener('click', () => {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) return;
+  const data = {
+    name, phone: document.getElementById('f-phone').value.trim(),
+    stage: document.getElementById('f-stage').value, temp: document.getElementById('f-temp').value,
+    notes: document.getElementById('f-notes').value.trim(), lastContact: document.getElementById('f-date').value
+  };
+  if (editId) {
+    leads = leads.map(l => l.id === editId ? Object.assign({}, l, data) : l);
+    if (selectedId === editId) openDetail(editId);
+  } else {
+    leads = [Object.assign({ id: genId(), createdAt: new Date().toISOString() }, data), ...leads];
+  }
+  document.getElementById('form-modal').classList.add('hidden');
+  editId = null;
+  renderAll();
+  scheduleSave();
+});
+
+// Detail panel
+function openDetail(id) {
+  selectedId = id;
+  const lead = leads.find(l => l.id === id);
+  if (!lead) return;
+  document.getElementById('d-name').textContent = lead.name;
+  document.getElementById('d-phone').textContent = lead.phone || '';
+  const sel = document.getElementById('d-stage-selector');
+  sel.innerHTML = STAGES.map(s => {
+    const sc = STAGE_COLORS[s];
+    const active = lead.stage === s;
+    return '<button class="stage-btn' + (active ? ' active' : '') + '" data-stage="' + s + '" style="' + (active ? 'background:' + sc.bg + ';color:' + sc.text + ';border-color:' + sc.border : '') + '">' + s + '</button>';
+  }).join('');
+  sel.querySelectorAll('.stage-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      leads = leads.map(l => l.id === id ? Object.assign({}, l, { stage: btn.dataset.stage, lastContact: today() }) : l);
+      renderAll(); openDetail(id); scheduleSave();
+    });
+  });
+  document.getElementById('d-meta').innerHTML =
+    '<div><div class="meta-label">Temperatura</div><div class="meta-val" style="color:' + TEMP_META[lead.temp].color + '">' + TEMP_META[lead.temp].icon + ' ' + lead.temp + '</div></div>' +
+    '<div><div class="meta-label">Último contato</div><div class="meta-val">' + formatDate(lead.lastContact) + ' <span style="color:var(--muted);font-weight:400">(' + daysSince(lead.lastContact) + ')</span></div></div>' +
+    (lead.notes ? '<div style="grid-column:1/-1"><div class="meta-label">Notas</div><div>' + lead.notes + '</div></div>' : '');
+  document.getElementById('d-convo').value = '';
+  document.getElementById('ai-result').className = 'hidden';
+  document.getElementById('detail-panel').classList.remove('hidden');
+}
+
+document.getElementById('btn-close-panel').addEventListener('click', () => { document.getElementById('detail-panel').classList.add('hidden'); selectedId = null; });
+document.getElementById('detail-panel').addEventListener('click', function(e) { if (e.target === this) { this.classList.add('hidden'); selectedId = null; } });
+document.getElementById('btn-edit-lead').addEventListener('click', () => {
+  const lead = leads.find(l => l.id === selectedId);
+  if (lead) { document.getElementById('detail-panel').classList.add('hidden'); openForm(lead); }
+});
+document.getElementById('btn-delete-lead').addEventListener('click', () => {
+  if (!confirm('Remover este lead?')) return;
+  leads = leads.filter(l => l.id !== selectedId);
+  document.getElementById('detail-panel').classList.add('hidden');
+  selectedId = null; renderAll(); scheduleSave();
+});
+
+// AI
+document.getElementById('btn-gen-msg').addEventListener('click', async () => {
+  const lead = leads.find(l => l.id === selectedId);
+  if (!lead) return;
+  const btn = document.getElementById('btn-gen-msg');
+  const convo = document.getElementById('d-convo').value;
+  btn.disabled = true; btn.textContent = 'Gerando...';
+  document.getElementById('ai-result').className = 'hidden';
+  const prompt = 'Você é assistente de vendas imobiliárias da LUGGA, empresa de apartamentos compactos 30-45m² em São Paulo.\n\nLead: ' + lead.name + '\nTemperatura: ' + lead.temp + '\nEstágio: ' + lead.stage + '\nÚltimo contato: ' + formatDate(lead.lastContact) + '\nNotas: ' + (lead.notes || 'nenhuma') + (convo ? '\n\nConversa recente:\n' + convo : '') + '\n\nGere a próxima mensagem de WhatsApp para este lead. Seja direto, humano, sem formalidade excessiva. Máximo 3 linhas. Inclua uma classificação rápida do lead (🔴/🟡/🟢) e o porquê em uma frase antes da mensagem.';
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await res.json();
+    const text = (data.content && data.content[0] && data.content[0].text) || 'Erro ao gerar mensagem.';
+    const aiEl = document.getElementById('ai-result');
+    aiEl.innerHTML = '<div>' + text.replace(/\n/g,'<br>') + '</div><button class="btn-copy" onclick="navigator.clipboard&&navigator.clipboard.writeText(this.previousSibling.innerText)">Copiar mensagem</button>';
+    aiEl.className = 'ai-result';
+  } catch(e) {
+    document.getElementById('ai-result').innerHTML = 'Erro de conexão.';
+    document.getElementById('ai-result').className = 'ai-result';
+  }
+  btn.disabled = false; btn.textContent = '✦ Gerar mensagem';
+});
+
+// Filters
+document.getElementById('search-input').addEventListener('input', function() { filterSearch = this.value; renderLeads(); });
+document.querySelectorAll('.temp-pill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const t = btn.dataset.temp;
+    filterTemp = filterTemp === t ? 'Todos' : t;
+    document.querySelectorAll('.temp-pill').forEach(b => {
+      const meta = TEMP_META[b.dataset.temp];
+      b.style.background = filterTemp === b.dataset.temp ? meta.color + '20' : 'var(--faint)';
+      b.style.borderColor = filterTemp === b.dataset.temp ? meta.color : 'var(--border)';
+    });
+    renderLeads();
+  });
+});
+</script>
+</body>
+</html>
